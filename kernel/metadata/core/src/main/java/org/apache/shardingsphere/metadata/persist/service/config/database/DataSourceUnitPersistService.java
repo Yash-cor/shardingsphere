@@ -42,6 +42,38 @@ public final class DataSourceUnitPersistService {
     private final PersistRepository repository;
     
     /**
+     * Load data source pool properties map.
+     *
+     * @param databaseName database name
+     * @return data source pool properties map
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, DataSourcePoolProperties> load(final String databaseName) {
+        Collection<String> childrenKeys = repository.getChildrenKeys(DataSourceMetaDataNode.getDataSourceUnitsNode(databaseName));
+        Map<String, DataSourcePoolProperties> result = new LinkedHashMap<>(childrenKeys.size(), 1F);
+        for (String each : childrenKeys) {
+            String dataSourceValue = repository.query(DataSourceMetaDataNode.getDataSourceUnitVersionNode(databaseName, each, getDataSourceActiveVersion(databaseName, each)));
+            if (!Strings.isNullOrEmpty(dataSourceValue)) {
+                result.put(each, new YamlDataSourceConfigurationSwapper().swapToDataSourcePoolProperties(YamlEngine.unmarshal(dataSourceValue, Map.class)));
+            }
+        }
+        return result;
+    }
+    
+    /**
+     * Load data source pool properties.
+     *
+     * @param databaseName database name
+     * @param dataSourceName data source name
+     * @return data source pool properties
+     */
+    @SuppressWarnings("unchecked")
+    public DataSourcePoolProperties load(final String databaseName, final String dataSourceName) {
+        String dataSourceValue = repository.query(DataSourceMetaDataNode.getDataSourceUnitVersionNode(databaseName, dataSourceName, getDataSourceActiveVersion(databaseName, dataSourceName)));
+        return new YamlDataSourceConfigurationSwapper().swapToDataSourcePoolProperties(YamlEngine.unmarshal(dataSourceValue, Map.class));
+    }
+    
+    /**
      * Persist data source pool configurations.
      *
      * @param databaseName database name
@@ -58,52 +90,6 @@ public final class DataSourceUnitPersistService {
                 repository.persist(DataSourceMetaDataNode.getDataSourceUnitActiveVersionNode(databaseName, entry.getKey()), MetaDataVersion.DEFAULT_VERSION);
             }
         }
-    }
-    
-    /**
-     * Load data source pool configurations.
-     *
-     * @param databaseName database name
-     * @return data source pool configurations
-     */
-    @SuppressWarnings("unchecked")
-    public Map<String, DataSourcePoolProperties> load(final String databaseName) {
-        Collection<String> childrenKeys = repository.getChildrenKeys(DataSourceMetaDataNode.getDataSourceUnitsNode(databaseName));
-        Map<String, DataSourcePoolProperties> result = new LinkedHashMap<>(childrenKeys.size(), 1F);
-        for (String each : childrenKeys) {
-            String dataSourceValue = repository.query(DataSourceMetaDataNode.getDataSourceUnitVersionNode(databaseName, each, getDataSourceActiveVersion(databaseName, each)));
-            if (!Strings.isNullOrEmpty(dataSourceValue)) {
-                result.put(each, new YamlDataSourceConfigurationSwapper().swapToDataSourcePoolProperties(YamlEngine.unmarshal(dataSourceValue, Map.class)));
-            }
-        }
-        return result;
-    }
-    
-    /**
-     * Load data source pool configurations.
-     *
-     * @param databaseName database name
-     * @param dataSourceName data source name
-     * @return data source pool configurations
-     */
-    @SuppressWarnings("unchecked")
-    public Map<String, DataSourcePoolProperties> load(final String databaseName, final String dataSourceName) {
-        Map<String, DataSourcePoolProperties> result = new LinkedHashMap<>(1, 1F);
-        String dataSourceValue = repository.query(DataSourceMetaDataNode.getDataSourceUnitVersionNode(databaseName, dataSourceName, getDataSourceActiveVersion(databaseName, dataSourceName)));
-        if (!Strings.isNullOrEmpty(dataSourceValue)) {
-            result.put(dataSourceName, new YamlDataSourceConfigurationSwapper().swapToDataSourcePoolProperties(YamlEngine.unmarshal(dataSourceValue, Map.class)));
-        }
-        return result;
-    }
-    
-    /**
-     * Delete data source pool configurations.
-     *
-     * @param databaseName database name
-     * @param dataSourceName data source name
-     */
-    public void delete(final String databaseName, final String dataSourceName) {
-        repository.delete(DataSourceMetaDataNode.getDataSourceUnitNode(databaseName, dataSourceName));
     }
     
     /**
@@ -130,5 +116,15 @@ public final class DataSourceUnitPersistService {
     
     private String getDataSourceActiveVersion(final String databaseName, final String dataSourceName) {
         return repository.query(DataSourceMetaDataNode.getDataSourceUnitActiveVersionNode(databaseName, dataSourceName));
+    }
+    
+    /**
+     * Delete data source pool configurations.
+     *
+     * @param databaseName database name
+     * @param dataSourceName data source name
+     */
+    public void delete(final String databaseName, final String dataSourceName) {
+        repository.delete(DataSourceMetaDataNode.getDataSourceUnitNode(databaseName, dataSourceName));
     }
 }
